@@ -1,11 +1,11 @@
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import PropTypes from "prop-types";
 import { useState, useRef, useEffect, useContext, useCallback } from "react";
 import { IoClose } from "react-icons/io5";
-import userPhoto from "../../public/profile-holder.png";
 import { toast } from "react-toastify";
 import { AuthContext } from "../hooks/AuthContext";
 import { useNavigate } from "react-router-dom";
+import userPhoto from "../../public/profile-holder.png";
 
 const breakpoints = {
   tablet: "798px",
@@ -13,7 +13,17 @@ const breakpoints = {
 };
 
 // Animations
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
 
+const fadeOut = keyframes`
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-20px); }
+`;
+
+// Styled Components with Original Styles
 const ModalOverlay = styled.div`
   position: fixed;
   top: 0;
@@ -25,6 +35,8 @@ const ModalOverlay = styled.div`
   justify-content: center;
   align-items: center;
   z-index: 9999;
+  animation: ${({ $isClosing }) => ($isClosing ? fadeOut : fadeIn)} 0.4s
+    forwards;
 `;
 
 const ModalContainer = styled.div`
@@ -40,14 +52,12 @@ const ModalContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
+  animation: ${({ $isClosing }) => ($isClosing ? fadeOut : fadeIn)} 0.4s
+    forwards;
 
   @media (max-width: ${breakpoints.tablet}) {
     width: 60%;
     padding: 1.5rem;
-  }
-
-  @media (max-width: ${breakpoints.mobile}) {
-    width: 85%;
   }
 `;
 
@@ -62,10 +72,6 @@ const ModalTitle = styled.h2`
 
   @media (max-width: ${breakpoints.tablet}) {
     font-size: 1.5rem;
-  }
-
-  @media (max-width: ${breakpoints.mobile}) {
-    font-size: 1.3rem;
   }
 `;
 
@@ -87,7 +93,7 @@ const Description = styled.div`
   }
 
   @media (max-width: ${breakpoints.tablet}) {
-    font-size: 1rem; /* Reduce font size on smaller screens */
+    font-size: 1rem;
   }
 `;
 
@@ -110,11 +116,6 @@ const LogoutButton = styled.button`
   @media (max-width: ${breakpoints.tablet}) {
     padding: 1rem 3rem;
   }
-
-  @media (max-width: ${breakpoints.mobile}) {
-    padding: 0.8rem 2.5rem;
-    font-size: 0.9rem;
-  }
 `;
 
 const CloseButton = styled.button`
@@ -134,13 +135,6 @@ const CloseButton = styled.button`
   &:hover svg {
     color: rgba(100, 110, 112, 1);
   }
-
-  @media (max-width: ${breakpoints.mobile}) {
-    svg {
-      width: 1.5rem;
-      height: 1.5rem;
-    }
-  }
 `;
 
 const Content = styled.div`
@@ -154,12 +148,6 @@ const Content = styled.div`
   @media (max-width: ${breakpoints.tablet}) {
     padding: 1.5rem;
   }
-`;
-
-const StyledIoClose = styled(IoClose)`
-  color: rgba(148, 158, 160, 1);
-  width: 3rem;
-  height: 3rem;
 `;
 
 const Placeholder = styled.p`
@@ -182,9 +170,10 @@ const H4 = styled.h4`
   align-items: center;
 
   @media (max-width: ${breakpoints.tablet}) {
-    font-size: 1.5rem; /* Adjust font size for tablets */
+    font-size: 1.5rem;
   }
 `;
+
 function ModalUser({ isOpen, onCancel }) {
   const { setIsLoggedIn } = useContext(AuthContext);
   const [isClosing, setIsClosing] = useState(false);
@@ -203,51 +192,51 @@ function ModalUser({ isOpen, onCancel }) {
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [handleClose]);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
       setIsClosing(false);
-      const timer = setTimeout(() => onCancel(), 400);
+    } else {
+      setIsClosing(true);
+      const timer = setTimeout(() => {
+        setIsClosing(false);
+        onCancel();
+      }, 400);
       return () => clearTimeout(timer);
     }
-    setIsClosing(true);
   }, [isOpen, onCancel]);
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("first_name");
-    localStorage.removeItem("last_name");
-    localStorage.removeItem("user_id");
-
-    onCancel();
-    navigate("/");
-    toast.info("You have logged out successfully!");
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsLoggedIn(false);
+      localStorage.clear();
+      toast.info("You have logged out successfully!");
+      navigate("/");
+      onCancel();
+    }, 400);
   };
 
-  if (!isClosing && !isOpen) return null;
+  if (!isOpen && !isClosing) return null;
 
   return (
     <ModalOverlay $isClosing={isClosing}>
       <ModalContainer ref={ref} $isClosing={isClosing}>
-        <CloseButton onClick={handleClose} $isClosing={isClosing}>
-          <StyledIoClose />
+        <CloseButton onClick={handleClose}>
+          <IoClose />
         </CloseButton>
         <Content>
           <ModalTitle>
             <img src={userPhoto} alt="Profile" />
             <div>
               <H4>
-                {localStorage.getItem("first_name")}
+                {localStorage.getItem("first_name")}{" "}
                 {localStorage.getItem("last_name")}
               </H4>
             </div>
           </ModalTitle>
-
           <UserInfo>
             <Description>
               <Placeholder>First Name:</Placeholder>
@@ -259,7 +248,6 @@ function ModalUser({ isOpen, onCancel }) {
             </Description>
           </UserInfo>
         </Content>
-
         <LogoutButton onClick={handleLogout}>Logout</LogoutButton>
       </ModalContainer>
     </ModalOverlay>
